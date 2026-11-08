@@ -14,7 +14,7 @@ header{padding:18px 16px 8px;max-width:1100px;margin:auto}h1{font-size:1.5rem;ma
 #cloud{max-width:1100px;margin:10px auto 40px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:center}
 .s{cursor:pointer;line-height:1.2;max-width:100%;overflow-wrap:anywhere;color:var(--ink);text-decoration:none;border-bottom:1px dotted transparent}
 .s:hover,.s:focus{border-bottom-color:var(--acc);outline:none;color:var(--acc)}
-.s.lo{color:#9a9284}
+.s.lo{color:#9a9284}.s:nth-child(3n){color:#5a3a2a}.s:nth-child(5n){color:#2f4a3a}
 #panel{position:fixed;left:0;right:0;bottom:0;max-height:70vh;overflow:auto;background:var(--card);border-top:2px solid var(--acc);padding:14px 16px 22px;box-shadow:0 -6px 20px rgba(0,0,0,.12);display:none}
 #panel.on{display:block}#panel h2{font-size:1rem;margin:0 26px 8px 0;font-weight:normal}
 #panel .x{position:absolute;right:12px;top:8px;border:0;background:none;font-size:1.4rem;cursor:pointer;color:var(--mut)}
@@ -28,7 +28,7 @@ a{color:var(--acc)}
 <p class="sub">Every statement across the Cedwyn webapps, the evidence catalogue and the legal wiki, merged when near-identical. Bigger text = more distinct sources carry it. Small text = carried by one source only. Tap a statement to see where it comes from.</p></header>
 <div class="bar"><input id="q" type="search" placeholder="Filter: a word, a year, a record id (EV-0123)…" aria-label="Filter statements">
 <select id="ent" aria-label="Filter by entity"><option value="">All people, bodies and places</option></select>
-<select id="min" aria-label="Minimum sources"><option value="1">1+ sources</option><option value="2">2+ sources</option><option value="3" selected>3+ sources</option><option value="5">5+ sources</option></select></div>
+<select id="min" aria-label="Minimum sources"><option value="1">1+ sources</option><option value="2" selected>2+ sources</option><option value="3">3+ sources</option><option value="5">5+ sources</option></select></div>
 <div class="stats" id="stats">Loading…</div>
 <div id="cloud" aria-live="polite"></div>
 <details><summary>How this is built</summary>
@@ -60,9 +60,11 @@ function render(){
  let L=ALL.filter(x=>x.support>=m&&(!e||x.entities.includes(e))&&(!q||x.text.toLowerCase().includes(q)||x.entities.some(y=>y.toLowerCase().includes(q))));
  if(!L.length&&m>1){L=ALL.filter(x=>(!e||x.entities.includes(e))&&(!q||x.text.toLowerCase().includes(q)))}
  const mx=Math.max(1,...L.map(x=>x.support)),mn=Math.min(...L.map(x=>x.support),mx);
- const vw=Math.min(window.innerWidth,1100),big=vw<500?22:34,small=vw<500?11:12;
+ const vw=Math.min(window.innerWidth,1100),big=vw<500?27:40,small=vw<500?10.5:12;
  const c=document.getElementById('cloud');
- c.innerHTML=L.slice(0,260).map(x=>{const f=mx==mn?(big+small)/2:small+(big-small)*Math.sqrt((x.support-mn)/(mx-mn));
+ const h=s=>{let v=2166136261;for(const ch of s){v^=ch.charCodeAt(0);v=Math.imul(v,16777619)}v^=v>>>13;v=Math.imul(v,0x5bd1e995);v^=v>>>15;return v>>>0};
+ const V=L.slice(0,12).concat(L.slice(12,260).sort((p,q)=>h(p.id)-h(q.id)));
+ c.innerHTML=V.map(x=>{const f=mx==mn?(big+small)/2:small+(big-small)*Math.pow(Math.log(x.support/mn+1e-9)/Math.log(mx/mn||2),1.2);
   return `<a class="s${x.support<2?' lo':''}" tabindex="0" style="font-size:${f.toFixed(1)}px" data-id="${x.id}" title="${x.support} sources">${esc(x.text)}</a>`}).join('');
  document.getElementById('stats').textContent=`${ST.sources} sources · ${ST.documents_unique} documents (${ST.documents_mirrored_skipped} mirror copies counted once) · ${ST.statements_public} distinct statements · showing ${Math.min(L.length,260)} of ${L.length} in this view`;
 }
