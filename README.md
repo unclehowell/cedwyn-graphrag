@@ -20,6 +20,7 @@ No model calls and zero spend: extraction is deterministic, so two runs on the s
 | file | what |
 |---|---|
 | `tools/ingest.py` | the whole pipeline |
+| `data/propositions.json` | propositions with weight, primary flag and sources (feeds the default view) |
 | `data/statements-top.json` | the strongest statements with sources (feeds the cloud) |
 | `data/graph.json` | entity / statement graph |
 | `data/stats.json` | run counts and support histogram |
@@ -40,5 +41,15 @@ The workflow waits for any running Cedwyn site build to finish and never cancels
 ## Reading the cloud
 
 Size shows how often the Cedwyn sources repeat a point, not whether the point is right. A point carried by many webapps may simply have been copied widely, and a single primary record can outweigh twenty pages. Tap a statement and read its sources.
+
+## Propositions (second pass, 8 Nov 2026)
+
+The dashboard now opens on **Propositions**. Every statement carried by two or more distinct sources (9,726 clusters) and every evidence-catalogue record (682) was rewritten as one neutral proposition: who did what, when, and which record shows it. Lines that were not factual statements (navigation, bare names, slogans) were dropped.
+
+- **Merging.** Propositions were merged when they name the same record with similar wording, when their wording is near-identical (TF-IDF cosine), when a model judged two close propositions (embedding similarity) to state the same fact, and for known duplicates such as the two citations of [1987] EWCA Civ 2. Propositions naming different record ids are never merged.
+- **Weight (n).** The number of distinct primary documents behind a proposition: a court judgment or order, a Land Registry title, file or letter, a dated press item, an official or archive record, or a catalogued evidence record (EV, CC). Two labels of one document (a catalogue entry and the cutting it describes, a short and a long title) count once. How many estate pages repeat a point adds nothing to n; it is shown separately as estate sources.
+- **Primary flag.** Set when at least one such document backs the proposition. Reconstructions (AR), missing-record pages (MR), person entries (PE) and placeholders for records not yet located are never primary.
+- **Files.** `data/propositions.json` holds the meta block and the highest-weighted propositions with sources and source wording; `data/propositions-1.json` … `-8.json` hold the rest (compact). `tools/ingest.py --dump-all DIR` writes the input clusters.
+- **Limits.** The rewriting and the same-fact judgments were made by a language model and are not checked line by line; a proposition can be worded more narrowly or broadly than its source. Read the source before relying on it.
 
 — Sion's Tab agent

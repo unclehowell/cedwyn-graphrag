@@ -253,6 +253,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--out', default='data'); ap.add_argument('--repos'); ap.add_argument('--max-files', type=int, default=3000)
     ap.add_argument('--only'); ap.add_argument('--no-wiki', action='store_true'); ap.add_argument('--top', type=int, default=500)
+    ap.add_argument('--dump-all', help='write every cluster with support >= 2 plus the catalogue records (gzipped JSONL) here, for the proposition pass')
     args = ap.parse_args(); os.makedirs(args.out, exist_ok=True)
     t0 = time.time()
     names = repo_list(args)
@@ -289,8 +290,9 @@ def main():
             occ[k][source].add(did)
             if k not in text_of or (len(s) < len(text_of[k]) and len(s) > 60): text_of[k] = s
     n0 = files
+    cat_recs = []
     for cid, url, text in read_catalogue():
-        add_doc('catalogue', cid, url, text)
+        cat_recs.append((cid, url, text)); add_doc('catalogue', cid, url, text)
     src_info['catalogue'] = {'kind': 'central evidence catalogue (live API)', 'files_read': files - n0, 'url': 'https://cedwyn.bucklerfamily.estate/catalogue/'}
     print(f'catalogue: {files-n0} records, {len(occ)} keys', flush=True)
     if not args.no_wiki:
@@ -319,7 +321,7 @@ def main():
     uf = cluster(keys, sh)
     groups = collections.defaultdict(list)
     for i in range(len(keys)): groups[uf.f(i)].append(i)
-    out = []; noise = []
+    out = []; noise = []; full = []
     for g in groups.values():
         srcs = collections.defaultdict(set); variants = 0
         for i in g:
@@ -334,6 +336,10 @@ def main():
                 'entities': sorted(entities(text)),
                 'sources': [{'source': s, 'docs': len(d), 'url': docs[min(d)][2]} for s, d in sorted(srcs.items(), key=lambda x: -len(x[1]))][:12]}
         if tmpl and len(tmpl) >= max(1, len(srcs) // 2): item['noise'] = 'template text repeated on most pages'; noise.append(item); continue
+        if args.dump_all and len(srcs) >= 2:
+            full.append({'text': text, 'support': len(srcs), 'docs': ndocs, 'variants': variants,
+                         'catalogue_ids': sorted(docs[d][1] for d in srcs.get('catalogue', ())),
+                         'sources': [{'source': s, 'docs': len(d), 'urls': [docs[i][2] for i in sorted(d)[:6]]} for s, d in sorted(srcs.items(), key=lambda x: -len(x[1]))]})
         out.append(item)
     out.sort(key=lambda x: (-x['support'], -x['docs'], len(x['text'])))
     noise.sort(key=lambda x: (-x['docs']))
@@ -369,5 +375,12 @@ def main():
     dump('graph.json', graph)
     dump('sources.json', src_info, 150_000)
     dump('stats.json', stats)
+    if args.dump_all:
+        import gzip
+        os.makedirs(args.dump_all, exist_ok=True)
+        with gzip.open(os.path.join(args.dump_all, 'clusters2.jsonl.gz'), 'wt') as f:
+            for x in full: f.write(json.dumps(x, ensure_ascii=False) + '\n')
+        with gzip.open(os.path.join(args.dump_all, 'catalogue.jsonl.gz'), 'wt') as f:
+            for cid, url, text in cat_recs: f.write(json.dumps({'id': cid, 'url': url, 'text': text[:3000]}, ensure_ascii=False) + '\n')
     print(json.dumps(stats, indent=1))
 if __name__ == '__main__': main()

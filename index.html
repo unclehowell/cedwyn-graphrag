@@ -1,22 +1,34 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Cedwyn statement graph</title>
-<meta name="description" content="What the Cedwyn records repeat most: every statement across the Cedwyn webapps, the evidence catalogue and the legal wiki, deduplicated and sized by the number of distinct sources that carry it.">
+<title>Cedwyn propositions and statement graph</title>
+<meta name="description" content="The Cedwyn records as plain propositions: who did what, when, and which record shows it, sized by the number of distinct primary sources behind each one.">
 <style>
-:root{--bg:#f7f4ee;--ink:#1f1d1a;--mut:#6d665c;--acc:#7a2e1f;--card:#fff;--line:#e2dccf}
+:root{--bg:#f7f4ee;--ink:#1f1d1a;--mut:#6d665c;--acc:#7a2e1f;--card:#fff;--line:#e2dccf;--pri:#2f4a3a}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Georgia,"Times New Roman",serif}
 header{padding:18px 16px 8px;max-width:1100px;margin:auto}h1{font-size:1.5rem;margin:0 0 4px}
 .sub{color:var(--mut);font-size:.92rem;margin:0}
-.bar{max-width:1100px;margin:auto;padding:8px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.bar input{flex:1 1 200px;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+.tabs{max-width:1100px;margin:6px auto 0;padding:0 16px;display:flex;gap:6px}
+.tabs button{font:inherit;padding:7px 14px;border:1px solid var(--line);border-bottom:0;border-radius:8px 8px 0 0;background:#efe9de;color:var(--mut);cursor:pointer}
+.tabs button.on{background:#fff;color:var(--ink);font-weight:bold}
+.bar{max-width:1100px;margin:auto;padding:8px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#fff;border-top:1px solid var(--line)}
+.bar input[type=search]{flex:1 1 200px;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
 .bar select{padding:9px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;max-width:100%}
-.stats{max-width:1100px;margin:auto;padding:0 16px;color:var(--mut);font-size:.85rem}
+.bar label{font-size:.88rem;color:var(--mut);display:flex;gap:4px;align-items:center}
+.stats{max-width:1100px;margin:auto;padding:6px 16px 0;color:var(--mut);font-size:.85rem}
+.view{display:none}.view.on{display:block}
 #cloud{max-width:1100px;margin:10px auto 40px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:center}
 .s{cursor:pointer;line-height:1.2;max-width:100%;overflow-wrap:anywhere;color:var(--ink);text-decoration:none;border-bottom:1px dotted transparent}
 .s:hover,.s:focus{border-bottom-color:var(--acc);outline:none;color:var(--acc)}
 .s.lo{color:#9a9284}.s:nth-child(3n){color:#5a3a2a}.s:nth-child(5n){color:#2f4a3a}
-#panel{position:fixed;left:0;right:0;bottom:0;max-height:70vh;overflow:auto;background:var(--card);border-top:2px solid var(--acc);padding:14px 16px 22px;box-shadow:0 -6px 20px rgba(0,0,0,.12);display:none}
+#plist{max-width:1100px;margin:10px auto 40px;padding:4px 12px}
+.p{display:block;cursor:pointer;margin:0 0 10px;padding:8px 10px;border-left:4px solid var(--line);background:#fff;border-radius:0 6px 6px 0;overflow-wrap:anywhere;line-height:1.3;color:var(--ink);text-decoration:none}
+.p.pri{border-left-color:var(--pri)}.p:hover,.p:focus{outline:none;background:#fbf7f0;color:var(--acc)}
+.p .m{display:block;font-size:12px;color:var(--mut);margin-top:3px;font-family:system-ui,sans-serif}
+.tag{display:inline-block;font-size:11px;border-radius:9px;padding:0 6px;margin-right:4px;background:#e6efe9;color:var(--pri);font-family:system-ui,sans-serif}
+.tag.no{background:#eee;color:#777}
+#panel{position:fixed;left:0;right:0;bottom:0;max-height:72vh;overflow:auto;background:var(--card);border-top:2px solid var(--acc);padding:14px 16px 22px;box-shadow:0 -6px 20px rgba(0,0,0,.12);display:none}
 #panel.on{display:block}#panel h2{font-size:1rem;margin:0 26px 8px 0;font-weight:normal}
+#panel h3{font-size:.85rem;margin:12px 0 2px;color:var(--mut);font-family:system-ui,sans-serif;text-transform:uppercase;letter-spacing:.04em}
 #panel .x{position:absolute;right:12px;top:8px;border:0;background:none;font-size:1.4rem;cursor:pointer;color:var(--mut)}
 #panel ul{padding-left:18px;margin:6px 0}#panel li{margin:4px 0;overflow-wrap:anywhere}
 .chip{display:inline-block;font-size:.78rem;border:1px solid var(--line);border-radius:12px;padding:1px 8px;margin:2px 3px 2px 0;color:var(--mut);cursor:pointer;background:#fff}
@@ -24,37 +36,74 @@ details{max-width:1100px;margin:0 auto 30px;padding:0 16px;color:var(--mut);font
 footer{max-width:1100px;margin:auto;padding:10px 16px 90px;color:var(--mut);font-size:.8rem}
 a{color:var(--acc)}
 </style></head><body>
-<header><h1>Cedwyn statement graph</h1>
-<p class="sub">Every statement across the Cedwyn webapps, the evidence catalogue and the legal wiki, merged when near-identical. Bigger text = more distinct sources carry it. Small text = carried by one source only. Tap a statement to see where it comes from.</p></header>
+<header><h1>Cedwyn propositions</h1>
+<p class="sub">The Cedwyn records rewritten as plain propositions: who did what, when, and which record shows it. Bigger text = more distinct primary sources behind it (court, registry, press, official and catalogued records). How often the estate's own pages repeat a point does not make it bigger. Tap a proposition to see its sources.</p></header>
+<div class="tabs" role="tablist"><button id="tP" class="on" role="tab" aria-selected="true">Propositions</button><button id="tS" role="tab" aria-selected="false">Statements</button></div>
+<section id="vP" class="view on">
+<div class="bar"><input id="pq" type="search" placeholder="Filter: a word, a year, a record id…" aria-label="Filter propositions">
+<select id="pk" aria-label="Kind of record"><option value="">All record kinds</option><option value="court">Court</option><option value="registry">Land Registry</option><option value="press">Press</option><option value="official">Official / archive</option><option value="catalogue">Catalogue</option><option value="estate">Estate's own</option></select>
+<label><input id="pp" type="checkbox"> primary only</label></div>
+<div class="stats" id="pstats">Loading…</div>
+<div id="plist" aria-live="polite"></div>
+</section>
+<section id="vS" class="view">
 <div class="bar"><input id="q" type="search" placeholder="Filter: a word, a year, a record id (EV-0123)…" aria-label="Filter statements">
 <select id="ent" aria-label="Filter by entity"><option value="">All people, bodies and places</option></select>
 <select id="min" aria-label="Minimum sources"><option value="1">1+ sources</option><option value="2" selected>2+ sources</option><option value="3">3+ sources</option><option value="5">5+ sources</option></select></div>
 <div class="stats" id="stats">Loading…</div>
 <div id="cloud" aria-live="polite"></div>
+</section>
 <details><summary>How this is built</summary>
+<p><b>Propositions.</b> Every statement carried by two or more distinct sources, and every evidence-catalogue record, is rewritten as one neutral sentence naming who did what, when, and the record that shows it. Sentences that mean the same thing are merged (same record or same event, near-identical wording). Each proposition is weighed by the number of distinct primary sources behind it: a court judgment, a Land Registry title or letter, a dated press item, an official or archive record, or a catalogued evidence record. It is flagged <span class="tag">primary</span> when at least one such record backs it. Estate pages that copy a point add nothing to its size; they are listed under the proposition as estate pages. The rewriting was done by a language model and is not checked line by line: read the source before relying on a proposition.</p>
 <p id="method"></p>
-<p>Each source is one Cedwyn webapp repository, the central evidence catalogue, or the legal wiki. A statement copied into many pages of one source counts once for that source. Files that mirror another file exactly are counted once. Page furniture (navigation, footers, shop lines) and text repeated on most pages of a source are set aside as noise. Statements that carry personal or contact details are left out. Nothing here is a finding: it shows how often the records and pages repeat a point, not whether the point is right. Read each source.</p>
-<p><a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/noise.json">Noise set aside</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/stats.json">Run statistics</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/graph.json">Entity graph</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag">Repository</a></p></details>
+<p><b>Statements.</b> Each source is one Cedwyn webapp repository, the central evidence catalogue, or the legal wiki. A statement copied into many pages of one source counts once for that source. Page furniture and text repeated on most pages of a source are set aside as noise. Statements that carry personal or contact details are left out. Nothing here is a finding.</p>
+<p><a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/propositions.json">Propositions data</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/noise.json">Noise set aside</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/stats.json">Run statistics</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag">Repository</a></p></details>
 <div id="panel" role="dialog" aria-modal="false"><button class="x" aria-label="Close" onclick="closeP()">×</button><div id="pbody"></div></div>
 <footer>Rebuilt from the source repositories by a re-runnable job. <span id="gen"></span></footer>
 <script>
-let ALL=[],ST={};
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let ALL=[],ST={},PR=[],PM={},sLoaded=false;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const lab=e=>e.startsWith('year:')?e.slice(5):e.startsWith('id:')?e.slice(3):e;
+const KN={court:'court',registry:'Land Registry',press:'press',official:'official / archive',catalogue:'catalogue',estate:"estate's own",none:'no record named'};
 const RAW='https://raw.githubusercontent.com/unclehowell/cedwyn-graphrag/main/';
 async function getj(p){const cb='?cb='+Date.now();
- if(!/github\.io$/.test(location.hostname)){try{const r=await fetch(RAW+p+cb);if(r.ok)return r.json()}catch(e){}}
+ try{const r=await fetch(RAW+p+cb);if(r.ok)return r.json()}catch(e){}
  const r=await fetch(p+cb);if(!r.ok)throw new Error(p+' '+r.status);return r.json()}
-async function load(){
+function show(v){const P=v=='P';document.getElementById('vP').classList.toggle('on',P);document.getElementById('vS').classList.toggle('on',!P);
+ document.getElementById('tP').classList.toggle('on',P);document.getElementById('tS').classList.toggle('on',!P);
+ document.getElementById('tP').setAttribute('aria-selected',P);document.getElementById('tS').setAttribute('aria-selected',!P);
+ if(!P&&!sLoaded){sLoaded=true;loadS().catch(e=>{document.getElementById('stats').textContent='Could not load the data: '+e})}
+ history.replaceState(null,'',P?location.pathname:'#statements')}
+let shardsLoaded=false,shardsLoading=false;
+async function loadShards(){if(shardsLoaded||shardsLoading||!(PM.shards||[]).length)return;shardsLoading=true;document.getElementById('pstats').textContent='Loading all propositions…';
+ const parts=await Promise.all(PM.shards.map(p=>getj(p).catch(()=>[])));parts.forEach(a=>{PR=PR.concat(a)});shardsLoaded=true;renderP()}
+async function loadP(){const a=await getj('data/propositions.json');PR=a.items||a;PM=a.meta||{};
+ document.getElementById('gen').textContent='Last run: '+(PM.generated_utc||'');renderP()}
+function renderP(){
+ const q=document.getElementById('pq').value.trim().toLowerCase(),k=document.getElementById('pk').value,po=document.getElementById('pp').checked;
+ if((q||k)&&!shardsLoaded)loadShards();
+ const L=PR.filter(x=>(!po||x.primary)&&(!k||x.k==k)&&(!q||x.p.toLowerCase().includes(q)||(x.y||'').includes(q)||(x.ps||[]).some(s=>s.toLowerCase().includes(q))));
+ const mx=Math.max(1,...PR.map(x=>x.n||0)),vw=Math.min(window.innerWidth,1100),big=vw<500?24:32,small=vw<500?14.5:16;
+ const V=L.slice(0,400);
+ document.getElementById('plist').innerHTML=V.map(x=>{const f=x.n?small+(big-small)*Math.pow(Math.log(x.n)/Math.log(mx||2),.9):small-1.5;
+  return `<a class="p${x.primary?' pri':''}" tabindex="0" data-id="${x.id}" style="font-size:${f.toFixed(1)}px">${esc(x.p)}<span class="m">${x.primary?'<span class="tag">primary</span>':'<span class="tag no">no primary record</span>'}${x.n} primary source${x.n==1?'':'s'} · ${x.est} estate source${x.est==1?'':'s'}${x.y?' · '+esc(x.y):''}</span></a>`}).join('')||'<p>No proposition matches.</p>';
+ document.getElementById('pstats').textContent=`${PM.count||PR.length} propositions (${PM.primary||''} with a primary record) from ${PM.inputs||''} statements and catalogue records · showing ${V.length} of ${L.length}${shardsLoaded?'':' (top '+PR.length+' loaded; filtering loads the rest)'}`;
+}
+function openPR(id){const x=PR.find(y=>y.id==id);if(!x)return;
+ const pri=(x.src||[]).filter(s=>s.t=='p'),est=(x.src||[]).filter(s=>s.t!='p');
+ document.getElementById('pbody').innerHTML=`<h2>${esc(x.p)}</h2><div>${x.primary?'<span class="tag">primary</span>':'<span class="tag no">no primary record</span>'}${x.n} distinct primary source${x.n==1?'':'s'} · ${x.est} estate source${x.est==1?'':'s'} · ${x.w} wording${x.w==1?'':'s'} merged</div>
+ <h3>Primary records</h3>${(x.ps||[]).length?'<ul>'+x.ps.map(s=>`<li>${esc(s)}</li>`).join('')+'</ul>':'<p>None named in the text.</p>'}
+ ${(x.cat||[]).length?'<h3>Catalogue records</h3><ul>'+x.cat.map(c=>`<li><a href="https://cedwyn.bucklerfamily.estate/catalogue/#${encodeURIComponent(c)}" target="_blank" rel="noopener">${esc(c)}</a></li>`).join('')+'</ul>':''}
+ <h3>Where it appears</h3><ul>${(x.src||[]).map(s=>`<li><a href="${esc(s.u)}" target="_blank" rel="noopener">${esc(s.s)}</a>${s.d>1?' — '+s.d+' documents':''}</li>`).join('')}</ul>
+ ${(x.orig||[]).length?'<h3>Source wording</h3><ul>'+x.orig.map(o=>`<li>“${esc(o)}”</li>`).join('')+'</ul>':''}`;
+ document.getElementById('panel').classList.add('on')}
+async function loadS(){
  const [a,b]=await Promise.all([getj('data/statements-top.json'),getj('data/stats.json')]);
- ALL=a;ST=b;
- document.getElementById('method').textContent=b.method||'';
- document.getElementById('gen').textContent='Last run: '+(b.generated_utc||'');
+ ALL=a;ST=b;document.getElementById('method').textContent=b.method||'';
  const ec={};a.forEach(x=>x.entities.forEach(e=>{if(!e.startsWith('year:'))ec[e]=(ec[e]||0)+x.support}));
  const sel=document.getElementById('ent');
  Object.entries(ec).sort((p,q)=>q[1]-p[1]).slice(0,60).forEach(([e])=>{const o=document.createElement('option');o.value=e;o.textContent=lab(e);sel.appendChild(o)});
- render();
-}
+ render()}
 function render(){
  const q=document.getElementById('q').value.trim().toLowerCase(),e=document.getElementById('ent').value,m=+document.getElementById('min').value;
  let L=ALL.filter(x=>x.support>=m&&(!e||x.entities.includes(e))&&(!q||x.text.toLowerCase().includes(q)||x.entities.some(y=>y.toLowerCase().includes(q))));
@@ -76,10 +125,15 @@ function openP(id){
  document.getElementById('panel').classList.add('on');
 }
 function closeP(){document.getElementById('panel').classList.remove('on')}
-document.addEventListener('click',ev=>{const t=ev.target;if(t.classList.contains('s')){ev.preventDefault();openP(t.dataset.id)}
+document.addEventListener('click',ev=>{const t=ev.target.closest('.s,.p,.chip');if(!t)return;
+ if(t.classList.contains('s')){ev.preventDefault();openP(t.dataset.id)}
+ if(t.classList.contains('p')){ev.preventDefault();openPR(t.dataset.id)}
  if(t.classList.contains('chip')){const e=t.dataset.e;const sel=document.getElementById('ent');if(![...sel.options].some(o=>o.value==e)){const o=document.createElement('option');o.value=e;o.textContent=lab(e);sel.appendChild(o)}sel.value=e;closeP();render()}});
-document.addEventListener('keydown',ev=>{if(ev.key=='Enter'&&ev.target.classList.contains('s'))openP(ev.target.dataset.id);if(ev.key=='Escape')closeP()});
+document.addEventListener('keydown',ev=>{if(ev.key=='Enter'){if(ev.target.classList.contains('s'))openP(ev.target.dataset.id);if(ev.target.classList.contains('p'))openPR(ev.target.dataset.id)}if(ev.key=='Escape')closeP()});
 ['q','ent','min'].forEach(i=>document.getElementById(i).addEventListener('input',render));
-window.addEventListener('resize',()=>{clearTimeout(window._r);window._r=setTimeout(render,200)});
-load().catch(e=>{document.getElementById('stats').textContent='Could not load the data: '+e});
+['pq','pk','pp'].forEach(i=>document.getElementById(i).addEventListener('input',renderP));
+document.getElementById('tP').onclick=()=>show('P');document.getElementById('tS').onclick=()=>show('S');
+window.addEventListener('resize',()=>{clearTimeout(window._r);window._r=setTimeout(()=>{renderP();if(sLoaded)render()},200)});
+loadP().catch(e=>{document.getElementById('pstats').textContent='Could not load the propositions: '+e});
+if(location.hash=='#statements')show('S');
 </script></body></html>
