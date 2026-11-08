@@ -2,7 +2,7 @@
 
 A statement graph of the Cedwyn records: every non-datro Cedwyn webapp repository, the central evidence catalogue and the public legal wiki, merged into one deduplicated set of statements. The dashboard shows them as a **statement cloud**: the more distinct sources carry a statement, the bigger it is. Text carried by only one source stays small.
 
-**Dashboard:** https://unclehowell.github.io/cedwyn-graphrag/
+**Dashboard:** https://cedwyn-graphrag.sites.tab.bot/ (static page; it reads the latest `data/` straight from this repository, so a new ingest shows up without a redeploy)
 **Tracking issue:** https://github.com/unclehowell/cedwyn/issues/523
 
 ## What it does

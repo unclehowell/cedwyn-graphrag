@@ -34,16 +34,19 @@ a{color:var(--acc)}
 <details><summary>How this is built</summary>
 <p id="method"></p>
 <p>Each source is one Cedwyn webapp repository, the central evidence catalogue, or the legal wiki. A statement copied into many pages of one source counts once for that source. Files that mirror another file exactly are counted once. Page furniture (navigation, footers, shop lines) and text repeated on most pages of a source are set aside as noise. Statements that carry personal or contact details are left out. Nothing here is a finding: it shows how often the records and pages repeat a point, not whether the point is right. Read each source.</p>
-<p><a href="data/noise.json">Noise set aside</a> · <a href="data/stats.json">Run statistics</a> · <a href="data/graph.json">Entity graph (JSON)</a></p></details>
+<p><a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/noise.json">Noise set aside</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/stats.json">Run statistics</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag/blob/main/data/graph.json">Entity graph</a> · <a href="https://github.com/unclehowell/cedwyn-graphrag">Repository</a></p></details>
 <div id="panel" role="dialog" aria-modal="false"><button class="x" aria-label="Close" onclick="closeP()">×</button><div id="pbody"></div></div>
 <footer>Rebuilt from the source repositories by a re-runnable job. <span id="gen"></span></footer>
 <script>
 let ALL=[],ST={};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const lab=e=>e.startsWith('year:')?e.slice(5):e.startsWith('id:')?e.slice(3):e;
+const RAW='https://raw.githubusercontent.com/unclehowell/cedwyn-graphrag/main/';
+async function getj(p){const cb='?cb='+Date.now();
+ if(!/github\.io$/.test(location.hostname)){try{const r=await fetch(RAW+p+cb);if(r.ok)return r.json()}catch(e){}}
+ const r=await fetch(p+cb);if(!r.ok)throw new Error(p+' '+r.status);return r.json()}
 async function load(){
- const cb='?cb='+Date.now();
- const [a,b]=await Promise.all([fetch('data/statements-top.json'+cb).then(r=>r.json()),fetch('data/stats.json'+cb).then(r=>r.json())]);
+ const [a,b]=await Promise.all([getj('data/statements-top.json'),getj('data/stats.json')]);
  ALL=a;ST=b;
  document.getElementById('method').textContent=b.method||'';
  document.getElementById('gen').textContent='Last run: '+(b.generated_utc||'');

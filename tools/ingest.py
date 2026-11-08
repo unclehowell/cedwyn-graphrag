@@ -28,6 +28,8 @@ TEXT_EXT = ('.md', '.markdown', '.html', '.htm', '.txt', '.json', '.csv', '.yml'
 SKIP_DIR = re.compile(r'(^|/)(node_modules|vendor|\.git|\.github|dist/assets|assets/(js|css|fonts?)|lib|libs|fonts?|_next/static|three|draco)(/|$)', re.I)
 SKIP_FILE = re.compile(r'(\.min\.|package(-lock)?\.json$|manifest\.webmanifest$|tsconfig|\.map$|lock\.json$|sitemap.*\.xml$|feed\.xml$|search[-_]?index|lunr|fuse)', re.I)
 BIG_REPO_KB = 30000
+MIRROR_SHARE = 0.6   # a document whose statements are >= 60% already carried by other sources is a copy: it adds no support
+SHARED_FILES = {'central.json', 'central.min.json'}   # the central DB copied into every webapp: read once, as its own source
 MAX_FILE = 400_000
 WIKI = 'greathousefarmwiki.wordpress.com'
 EXCLUDE_REPOS = {'cedwyn'}   # the old monorepo: its webapp content now lives in the split repos read here
@@ -103,6 +105,9 @@ def norm(s):
 def statements(text):
     for raw in SPLIT.split(text):
         s = re.sub(r'\s+', ' ', raw).strip(' \t-•*|:;,')
+        s = re.sub(r'^(?:subject|re|fwd?|aw|ynglŷn)\s*:\s*(?:(?:re|fwd?|subject)\s*:\s*)*', '', s, flags=re.I)
+        if not s or not (s[0].isupper() or s[0].isdigit() or s[0] in '"\u201c\u2018\'(['): continue   # a fragment cut mid-sentence
+        if re.match(r'^[A-Z][a-z]+\)', s) or re.search(r'automatic reply|out of office|undeliverable', s, re.I): continue
         if not (40 <= len(s) <= 420): continue
         words = s.split()
         if not (8 <= len(words) <= 60): continue
@@ -254,7 +259,7 @@ def main():
     seen_docs = {}
     occ = collections.defaultdict(lambda: collections.defaultdict(set))   # key -> source -> set(doc ids)
     text_of = {}; docs_per_source = collections.Counter(); src_info = {}; mirrors = 0; files = 0
-    excluded = collections.Counter(); docs = []; first_doc = {}; near_mirrors = collections.Counter()
+    excluded = collections.Counter(); docs = []; first_doc = {}; near_mirrors = collections.Counter(); shared_done = {}
     def add_doc(source, path, url, text):
         nonlocal mirrors, files
         files += 1
@@ -275,11 +280,8 @@ def main():
         # (mostly a copy of another source: it adds its new statements, but no support to the copied ones)
         mirror_of = None
         if len(keyset) >= 3:
-            c = collections.Counter(docs[first_doc[k]][0] for k in keyset if k in first_doc)
-            c.pop(source, None)
-            if c:
-                s0, n = c.most_common(1)[0]
-                if n >= 0.7 * len(keyset): mirror_of = s0; near_mirrors[source] += 1
+            other = sum(1 for k in keyset if k in first_doc and docs[first_doc[k]][0] != source)
+            if other >= MIRROR_SHARE * len(keyset): mirror_of = True; near_mirrors[source] += 1
         did = len(docs); seen_docs[h] = did; docs.append((source, path, url)); docs_per_source[source] += 1
         for k, s in cand:
             if mirror_of and k in first_doc: continue
@@ -303,9 +305,15 @@ def main():
         size_kb, br = names[name]
         n0 = files
         for p, raw in read_repo(name, args.max_files, size_kb, br):
-            add_doc(name, p, f'https://github.com/{OWNER}/{name}/blob/{br}/{p}', to_text(p, raw))
+            u = f'https://github.com/{OWNER}/{name}/blob/{br}/{p}'
+            if p.rsplit('/', 1)[-1] in SHARED_FILES:
+                if shared_done.get(p.rsplit('/', 1)[-1]): mirrors += 1; continue
+                shared_done[p.rsplit('/', 1)[-1]] = u
+                add_doc('central-db', p, u, to_text(p, raw)); continue
+            add_doc(name, p, u, to_text(p, raw))
         src_info[name] = {'kind': 'webapp repo', 'files_read': files - n0, 'documents_kept': docs_per_source[name], 'near_mirror_documents': near_mirrors[name], 'url': f'https://github.com/{OWNER}/{name}'}
         print(f'[{i+1}/{len(names)}] {name}: {files-n0} files, {len(occ)} keys, {time.time()-t0:.0f}s', flush=True)
+    if shared_done: src_info['central-db'] = {'kind': 'central database (data/central.json, copied into the webapps; read once)', 'documents_kept': docs_per_source['central-db'], 'url': list(shared_done.values())[0]}
     keys = list(occ)
     sh = [shingles(k.split()) for k in keys]
     uf = cluster(keys, sh)
@@ -346,10 +354,10 @@ def main():
                       [{'a': x['id'], 'b': e, 'w': x['support'], 'rel': 'mentions'} for x in top[:300] for e in x['entities'] if e in te]}
     hist = collections.Counter(min(x['support'], 10) for x in out)
     stats = {'generated_utc': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'runtime_s': round(time.time() - t0),
-             'sources': len(src_info), 'repos': len(names), 'files_read': files, 'documents_unique': len(docs), 'documents_mirrored_skipped': mirrors + sum(near_mirrors.values()), 'documents_exact_mirrors': mirrors, 'documents_near_mirrors': sum(near_mirrors.values()),
+             'sources': len(src_info), 'repos': len(names), 'files_read': files, 'documents_unique': len(docs) - sum(near_mirrors.values()), 'documents_mirrored_skipped': mirrors + sum(near_mirrors.values()), 'documents_exact_mirrors': mirrors, 'documents_near_mirrors': sum(near_mirrors.values()),
              'statement_variants': len(keys), 'statement_clusters': len(out) + len(noise), 'statements_public': len(out), 'noise_template': len(noise),
              'excluded_by_filter': dict(excluded), 'support_histogram': {('10+' if k == 10 else str(k)): v for k, v in sorted(hist.items())},
-             'method': 'support = distinct sources (webapp repo, evidence catalogue, legal wiki) carrying a near-identical statement. A document whose statements mostly already sit in one document of another source (a copy of the central catalogue, a mirrored wiki page) is a mirror and adds nothing. Repetition inside one source counts once. Deterministic, no model calls.'}
+             'method': 'support = distinct sources (webapp repo, evidence catalogue, legal wiki) carrying a near-identical statement. A document whose statements are mostly (60% or more) already carried by other sources is a copy (the central database in each webapp, a mirrored wiki page): it adds its new statements but no support to the copied ones. Repetition inside one source counts once. Deterministic, no model calls.'}
     def dump(name, obj, cap=390_000):
         s = json.dumps(obj, ensure_ascii=False, separators=(',', ':'))
         while len(s.encode()) > cap and isinstance(obj, list) and len(obj) > 50:
