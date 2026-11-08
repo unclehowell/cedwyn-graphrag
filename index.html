@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cedwyn statement graph</title>
+<meta name="description" content="What the Cedwyn records repeat most: every statement across the Cedwyn webapps, the evidence catalogue and the legal wiki, deduplicated and sized by the number of distinct sources that carry it.">
+<style>
+:root{--bg:#f7f4ee;--ink:#1f1d1a;--mut:#6d665c;--acc:#7a2e1f;--card:#fff;--line:#e2dccf}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 Georgia,"Times New Roman",serif}
+header{padding:18px 16px 8px;max-width:1100px;margin:auto}h1{font-size:1.5rem;margin:0 0 4px}
+.sub{color:var(--mut);font-size:.92rem;margin:0}
+.bar{max-width:1100px;margin:auto;padding:8px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bar input{flex:1 1 200px;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+.bar select{padding:9px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;max-width:100%}
+.stats{max-width:1100px;margin:auto;padding:0 16px;color:var(--mut);font-size:.85rem}
+#cloud{max-width:1100px;margin:10px auto 40px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;justify-content:center}
+.s{cursor:pointer;line-height:1.2;max-width:100%;overflow-wrap:anywhere;color:var(--ink);text-decoration:none;border-bottom:1px dotted transparent}
+.s:hover,.s:focus{border-bottom-color:var(--acc);outline:none;color:var(--acc)}
+.s.lo{color:#9a9284}
+#panel{position:fixed;left:0;right:0;bottom:0;max-height:70vh;overflow:auto;background:var(--card);border-top:2px solid var(--acc);padding:14px 16px 22px;box-shadow:0 -6px 20px rgba(0,0,0,.12);display:none}
+#panel.on{display:block}#panel h2{font-size:1rem;margin:0 26px 8px 0;font-weight:normal}
+#panel .x{position:absolute;right:12px;top:8px;border:0;background:none;font-size:1.4rem;cursor:pointer;color:var(--mut)}
+#panel ul{padding-left:18px;margin:6px 0}#panel li{margin:4px 0;overflow-wrap:anywhere}
+.chip{display:inline-block;font-size:.78rem;border:1px solid var(--line);border-radius:12px;padding:1px 8px;margin:2px 3px 2px 0;color:var(--mut);cursor:pointer;background:#fff}
+details{max-width:1100px;margin:0 auto 30px;padding:0 16px;color:var(--mut);font-size:.9rem}
+footer{max-width:1100px;margin:auto;padding:10px 16px 90px;color:var(--mut);font-size:.8rem}
+a{color:var(--acc)}
+</style></head><body>
+<header><h1>Cedwyn statement graph</h1>
+<p class="sub">Every statement across the Cedwyn webapps, the evidence catalogue and the legal wiki, merged when near-identical. Bigger text = more distinct sources carry it. Small text = carried by one source only. Tap a statement to see where it comes from.</p></header>
+<div class="bar"><input id="q" type="search" placeholder="Filter: a word, a year, a record id (EV-0123)…" aria-label="Filter statements">
+<select id="ent" aria-label="Filter by entity"><option value="">All people, bodies and places</option></select>
+<select id="min" aria-label="Minimum sources"><option value="1">1+ sources</option><option value="2">2+ sources</option><option value="3" selected>3+ sources</option><option value="5">5+ sources</option></select></div>
+<div class="stats" id="stats">Loading…</div>
+<div id="cloud" aria-live="polite"></div>
+<details><summary>How this is built</summary>
+<p id="method"></p>
+<p>Each source is one Cedwyn webapp repository, the central evidence catalogue, or the legal wiki. A statement copied into many pages of one source counts once for that source. Files that mirror another file exactly are counted once. Page furniture (navigation, footers, shop lines) and text repeated on most pages of a source are set aside as noise. Statements that carry personal or contact details are left out. Nothing here is a finding: it shows how often the records and pages repeat a point, not whether the point is right. Read each source.</p>
+<p><a href="data/noise.json">Noise set aside</a> · <a href="data/stats.json">Run statistics</a> · <a href="data/graph.json">Entity graph (JSON)</a></p></details>
+<div id="panel" role="dialog" aria-modal="false"><button class="x" aria-label="Close" onclick="closeP()">×</button><div id="pbody"></div></div>
+<footer>Rebuilt from the source repositories by a re-runnable job. <span id="gen"></span></footer>
+<script>
+let ALL=[],ST={};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const lab=e=>e.startsWith('year:')?e.slice(5):e.startsWith('id:')?e.slice(3):e;
+async function load(){
+ const cb='?cb='+Date.now();
+ const [a,b]=await Promise.all([fetch('data/statements-top.json'+cb).then(r=>r.json()),fetch('data/stats.json'+cb).then(r=>r.json())]);
+ ALL=a;ST=b;
+ document.getElementById('method').textContent=b.method||'';
+ document.getElementById('gen').textContent='Last run: '+(b.generated_utc||'');
+ const ec={};a.forEach(x=>x.entities.forEach(e=>{if(!e.startsWith('year:'))ec[e]=(ec[e]||0)+x.support}));
+ const sel=document.getElementById('ent');
+ Object.entries(ec).sort((p,q)=>q[1]-p[1]).slice(0,60).forEach(([e])=>{const o=document.createElement('option');o.value=e;o.textContent=lab(e);sel.appendChild(o)});
+ render();
+}
+function render(){
+ const q=document.getElementById('q').value.trim().toLowerCase(),e=document.getElementById('ent').value,m=+document.getElementById('min').value;
+ let L=ALL.filter(x=>x.support>=m&&(!e||x.entities.includes(e))&&(!q||x.text.toLowerCase().includes(q)||x.entities.some(y=>y.toLowerCase().includes(q))));
+ if(!L.length&&m>1){L=ALL.filter(x=>(!e||x.entities.includes(e))&&(!q||x.text.toLowerCase().includes(q)))}
+ const mx=Math.max(1,...L.map(x=>x.support)),mn=Math.min(...L.map(x=>x.support),mx);
+ const vw=Math.min(window.innerWidth,1100),big=vw<500?22:34,small=vw<500?11:12;
+ const c=document.getElementById('cloud');
+ c.innerHTML=L.slice(0,260).map(x=>{const f=mx==mn?(big+small)/2:small+(big-small)*Math.sqrt((x.support-mn)/(mx-mn));
+  return `<a class="s${x.support<2?' lo':''}" tabindex="0" style="font-size:${f.toFixed(1)}px" data-id="${x.id}" title="${x.support} sources">${esc(x.text)}</a>`}).join('');
+ document.getElementById('stats').textContent=`${ST.sources} sources · ${ST.documents_unique} documents (${ST.documents_mirrored_skipped} mirror copies counted once) · ${ST.statements_public} distinct statements · showing ${Math.min(L.length,260)} of ${L.length} in this view`;
+}
+function openP(id){
+ const x=ALL.find(y=>y.id==id);if(!x)return;
+ document.getElementById('pbody').innerHTML=`<h2>“${esc(x.text)}”</h2><div>${x.support} distinct source${x.support>1?'s':''} · ${x.docs} document${x.docs>1?'s':''} · ${x.variants} wording${x.variants>1?'s':''} merged</div>
+ <div>${x.entities.map(e=>`<span class="chip" data-e="${esc(e)}">${esc(lab(e))}</span>`).join('')}</div>
+ <ul>${x.sources.map(s=>`<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.source)}</a> — ${s.docs} document${s.docs>1?'s':''}</li>`).join('')}</ul>`;
+ document.getElementById('panel').classList.add('on');
+}
+function closeP(){document.getElementById('panel').classList.remove('on')}
+document.addEventListener('click',ev=>{const t=ev.target;if(t.classList.contains('s')){ev.preventDefault();openP(t.dataset.id)}
+ if(t.classList.contains('chip')){const e=t.dataset.e;const sel=document.getElementById('ent');if(![...sel.options].some(o=>o.value==e)){const o=document.createElement('option');o.value=e;o.textContent=lab(e);sel.appendChild(o)}sel.value=e;closeP();render()}});
+document.addEventListener('keydown',ev=>{if(ev.key=='Enter'&&ev.target.classList.contains('s'))openP(ev.target.dataset.id);if(ev.key=='Escape')closeP()});
+['q','ent','min'].forEach(i=>document.getElementById(i).addEventListener('input',render));
+window.addEventListener('resize',()=>{clearTimeout(window._r);window._r=setTimeout(render,200)});
+load().catch(e=>{document.getElementById('stats').textContent='Could not load the data: '+e});
+</script></body></html>

@@ -1,0 +1,3 @@
+name = "cedwyn-graphrag-trigger"
+main = "trigger.js"
+compatibility_date = "2026-11-01"
